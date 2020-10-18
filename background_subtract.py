@@ -30,20 +30,16 @@ def subtract(frame):
     diff = cv2.absdiff(bg.astype("uint8"), frame)
     thresholded = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)[1]
 
-    # get the contours in the thresholded image
     cnts,h = cv2.findContours(thresholded.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    # return None, if no contours detected
     if len(cnts) == 0:
         return
     else:
-        # based on contour area, get the maximum contour which is the hand
         segmented = max(cnts, key=cv2.contourArea)
         return (thresholded, segmented)
 
 
 cv2.namedWindow("MOG",cv2.WINDOW_NORMAL)
-# cv2.namedWindow("Threshold",cv2.WINDOW_NORMAL)
 top, right, bottom, left = 0, 265, 260, 0
 num_frames = 0
 cap = cv2.VideoCapture(0)
@@ -58,13 +54,24 @@ while True:
     else:
         hand = subtract(frame[top:bottom, left:right])
         if hand is not None:
-            # if yes, unpack the thresholded image and
-            # segmented region
             (thresholded, segmented) = hand
-
-            # draw the segmented region and display the frame
-            cv2.drawContours(thresholded, [segmented ], -1, (0, 0, 255))
-            # thresholded = cv2.resize(thresholded, (500,500))
+            c = cv2.convexHull(segmented)
+            # print(c)
+            thresholded = cv2.cvtColor(thresholded,cv2.COLOR_GRAY2BGR)
+            # extLeft = tuple(c[c[:, :, 0].argmin()][0])
+            # extRight = tuple(c[c[:, :, 0].argmax()][0])
+            # extTop = tuple(c[c[:, :, 1].argmin()][0])
+            # extBot = tuple(c[c[:, :, 1].argmax()][0])
+            # cv2.circle(thresholded, extLeft, 8, (0, 0, 255), -1)
+            # cv2.circle(thresholded, extRight, 8, (0, 255, 0), -1)
+            # cv2.circle(thresholded, extTop, 8, (255, 0, 0), -1)
+            # cv2.circle(thresholded, extBot, 8, (255, 255, 0), -1)
+            # cx = (extLeft[0]+extRight[0])//2
+            # cy = (extTop[1]+extBot[1])//2
+            # cv2.circle(thresholded, (cx,cy), 8, (255, 255, 0), -1)
+            for i in c:
+                cv2.circle(thresholded, tuple(i[0]), 2, (255, 255, 0), -1)
+            # cv2.drawContours(thresholded, [ch ], -1, (0, 255, 0))
             cv2.imshow("Theshold", thresholded)
 
     fgmask = cv2.resize(frame, (720,360))
