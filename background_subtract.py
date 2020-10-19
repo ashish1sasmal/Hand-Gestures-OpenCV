@@ -1,12 +1,13 @@
 # @Author: ASHISH SASMAL <ashish>
 # @Date:   16-10-2020
 # @Last modified by:   ashish
-# @Last modified time: 18-10-2020
+# @Last modified time: 19-10-2020
 
 import cv2
 import numpy as np
 import imutils
 from live_cam import live
+from sklearn.metrics.pairwise import euclidean_distances as eqd
 
 fgbg = cv2.createBackgroundSubtractorMOG2(history=20)
 
@@ -29,7 +30,9 @@ def subtract(frame):
     global bg
     diff = cv2.absdiff(bg.astype("uint8"), frame)
     thresholded = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)[1]
-
+    kernel = np.ones((5,5))
+    erosion = cv2.erode(thresholded, kernel, iterations=1)
+    dilation = cv2.dilate(erosion, kernel, iterations=1)
     cnts,h = cv2.findContours(thresholded.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if len(cnts) == 0:
@@ -39,40 +42,45 @@ def subtract(frame):
         return (thresholded, segmented)
 
 
-cv2.namedWindow("MOG",cv2.WINDOW_NORMAL)
+# cv2.namedWindow("MOG",cv2.WINDOW_NORMAL)
 top, right, bottom, left = 0, 265, 260, 0
 num_frames = 0
-cap = cv2.VideoCapture(0)
+# cap = cv2.VideoCapture(0)
 
 while True:
-    ret, frame = cap.read()
-    # frame = live()
+    # ret, frame = cap.read()
+    frame = live()
+    blur = cv2.GaussianBlur(frame, (3,3), 0)
+
     clone=frame.copy()
     frame = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
+    # print(num_frames)
+
+    roi = frame[top:bottom, left:right]
+
     if num_frames<30:
-        bgextract(frame[top:bottom, left:right])
+
+        blur_roi = cv2.GaussianBlur(roi, (3,3), 0)
+        print(blur_roi.shape)
+        bgextract(blur_roi)
     else:
-        hand = subtract(frame[top:bottom, left:right])
+        hand = subtract(roi)
+        print("here")
         if hand is not None:
+
             (thresholded, segmented) = hand
-            c = cv2.convexHull(segmented)
-            # print(c)
-            thresholded = cv2.cvtColor(thresholded,cv2.COLOR_GRAY2BGR)
-            # extLeft = tuple(c[c[:, :, 0].argmin()][0])
-            # extRight = tuple(c[c[:, :, 0].argmax()][0])
-            # extTop = tuple(c[c[:, :, 1].argmin()][0])
-            # extBot = tuple(c[c[:, :, 1].argmax()][0])
-            # cv2.circle(thresholded, extLeft, 8, (0, 0, 255), -1)
-            # cv2.circle(thresholded, extRight, 8, (0, 255, 0), -1)
-            # cv2.circle(thresholded, extTop, 8, (255, 0, 0), -1)
-            # cv2.circle(thresholded, extBot, 8, (255, 255, 0), -1)
-            # cx = (extLeft[0]+extRight[0])//2
-            # cy = (extTop[1]+extBot[1])//2
-            # cv2.circle(thresholded, (cx,cy), 8, (255, 255, 0), -1)
-            for i in c:
-                cv2.circle(thresholded, tuple(i[0]), 2, (255, 255, 0), -1)
-            # cv2.drawContours(thresholded, [ch ], -1, (0, 255, 0))
-            cv2.imshow("Theshold", thresholded)
+            hull = cv2.convexHull(segmented,returnPoints = False)
+            if len(hull)>3:
+                defects = cv2.convexityDefects(segmented,hull)
+                if defects is not None:
+                    for i in range(defects.shape[0]):
+                        s,e,f,d = defects[i,0]
+                        start = tuple(segmented[s][0])
+                        end = tuple(segmented[e][0])
+                        far = tuple(segmented[f][0])
+                        cv2.line(frame,start,end,[0,255,0],2)
+                        cv2.circle(frame,far,5,[0,0,255],-1)
+            cv2.imshow("Thresh",roi)
 
     fgmask = cv2.resize(frame, (720,360))
     cv2.rectangle(fgmask, (left, top), (right, bottom), (0,255,0), 2)
