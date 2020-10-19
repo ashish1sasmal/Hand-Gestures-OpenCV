@@ -8,6 +8,7 @@ import numpy as np
 import imutils
 from live_cam import live
 from sklearn.metrics.pairwise import euclidean_distances as eqd
+import math
 
 fgbg = cv2.createBackgroundSubtractorMOG2(history=20)
 
@@ -50,8 +51,9 @@ num_frames = 0
 while True:
     # ret, frame = cap.read()
     frame = live()
+    # print(frame.shape)
     blur = cv2.GaussianBlur(frame, (3,3), 0)
-
+    count =0
     clone=frame.copy()
     frame = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
     # print(num_frames)
@@ -61,11 +63,11 @@ while True:
     if num_frames<30:
 
         blur_roi = cv2.GaussianBlur(roi, (3,3), 0)
-        print(blur_roi.shape)
+        # print(blur_roi.shape)
         bgextract(blur_roi)
     else:
         hand = subtract(roi)
-        print("here")
+        # print("here")
         if hand is not None:
 
             (thresholded, segmented) = hand
@@ -78,9 +80,16 @@ while True:
                         start = tuple(segmented[s][0])
                         end = tuple(segmented[e][0])
                         far = tuple(segmented[f][0])
-                        cv2.line(frame,start,end,[0,255,0],2)
-                        cv2.circle(frame,far,5,[0,0,255],-1)
-            cv2.imshow("Thresh",roi)
+                        a = math.sqrt((end[0] - start[0]) ** 2 + (end[1] - start[1]) ** 2)
+                        b = math.sqrt((far[0] - start[0]) ** 2 + (far[1] - start[1]) ** 2)
+                        c = math.sqrt((end[0] - far[0]) ** 2 + (end[1] - far[1]) ** 2)
+                        angle = math.acos((b ** 2 + c ** 2 - a ** 2) / (2 * b * c))  # cosine theorem
+                        if angle <= math.pi / 2:  # angle less than 90 degree, treat as fingers
+                            count += 1
+                            cv2.circle(thresholded, far, 8, [211, 84, 0], -1)
+            # roi = cv2.resize(roi, (200,200))
+            print(count)
+            cv2.imshow("Thresh",thresholded)
 
     fgmask = cv2.resize(frame, (720,360))
     cv2.rectangle(fgmask, (left, top), (right, bottom), (0,255,0), 2)
