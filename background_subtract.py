@@ -1,7 +1,7 @@
 # @Author: ASHISH SASMAL <ashish>
 # @Date:   16-10-2020
 # @Last modified by:   ashish
-# @Last modified time: 19-10-2020
+# @Last modified time: 20-10-2020
 
 import cv2
 import numpy as np
@@ -32,7 +32,7 @@ def subtract(frame):
     diff = cv2.absdiff(bg.astype("uint8"), frame)
     thresholded = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)[1]
     kernel = np.ones((5,5))
-    erosion = cv2.erode(thresholded, kernel, iterations=1)
+    erosion = cv2.erode(thresholded, kernel, iterations=3)
     dilation = cv2.dilate(erosion, kernel, iterations=1)
     cnts,h = cv2.findContours(thresholded.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -46,11 +46,11 @@ def subtract(frame):
 # cv2.namedWindow("MOG",cv2.WINDOW_NORMAL)
 top, right, bottom, left = 0, 265, 260, 0
 num_frames = 0
-# cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 while True:
-    # ret, frame = cap.read()
-    frame = live()
+    ret, frame = cap.read()
+    # frame = live()
     # print(frame.shape)
     blur = cv2.GaussianBlur(frame, (3,3), 0)
     count =0
@@ -86,14 +86,16 @@ while True:
                         angle = math.acos((b ** 2 + c ** 2 - a ** 2) / (2 * b * c))  # cosine theorem
                         if angle <= math.pi / 2:  # angle less than 90 degree, treat as fingers
                             count += 1
-                            cv2.circle(thresholded, far, 8, [211, 84, 0], -1)
+                            cv2.circle(thresholded, far, 8, (0,0,255), -1)
             # roi = cv2.resize(roi, (200,200))
             print(count)
             cv2.imshow("Thresh",thresholded)
-
-    fgmask = cv2.resize(frame, (720,360))
-    cv2.rectangle(fgmask, (left, top), (right, bottom), (0,255,0), 2)
-    cv2.imshow("MOG",fgmask)
+    # fgmask = cv2.cvtColor(frame,cv2.COLOR_GRAY2BGR)
+    # fgmask = cv2.resize(fgmask, (720,360))
+    cv2.rectangle(clone, (left, top), (right, bottom), (0,255,0), 2)
+    cv2.putText(clone, f"Fingers : {count+1}", (20,20), cv2.FONT_HERSHEY_SIMPLEX ,
+                   1, (0,255,0), 2, cv2.LINE_AA)
+    cv2.imshow("MOG",clone)
     num_frames+=1
 
     k = cv2.waitKey(1) & 0xff
